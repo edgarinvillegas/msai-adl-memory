@@ -76,13 +76,21 @@ class Linear4Bit(torch.nn.Module):
             weight = state_dict[f"{prefix}weight"]  # noqa: F841
             del state_dict[f"{prefix}weight"]
             # TODO: Quantize the weights and store them in self.weight_q4 and self.weight_norm
-            raise NotImplementedError()
+            self.weight_q4, self.weight_norm = block_quantize_4bit(weight, self._group_size)
+            # raise NotImplementedError()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
             # TODO: Dequantize and call the layer
             # Hint: You can use torch.nn.functional.linear
-            raise NotImplementedError()
+            weight_dequant = block_dequantize_4bit(self.weight_q4, self.weight_norm)
+            # Print the shapes of x, weight_dequant and self.bias
+            # print('x.shape: ', x.shape, 'wd.shape: ', weight_dequant.shape, 'bias.shape: ', self.bias.shape)
+            # unflatten weight dequant to (out_features, in_features)
+            weight_dequant = weight_dequant.view(self._shape)
+            # print('wd.shape: ', weight_dequant.shape)
+            return torch.nn.functional.linear(x, weight_dequant, self.bias)
+            # raise NotImplementedError()
 
 
 class BigNet4Bit(torch.nn.Module):
@@ -95,7 +103,14 @@ class BigNet4Bit(torch.nn.Module):
         def __init__(self, channels):
             super().__init__()
             # TODO: Implement me (feel free to copy and reuse code from bignet.py)
-            raise NotImplementedError()
+            # raise NotImplementedError()
+            self.model = torch.nn.Sequential(
+                Linear4Bit(channels, channels),
+                torch.nn.ReLU(),
+                Linear4Bit(channels, channels),
+                torch.nn.ReLU(),
+                Linear4Bit(channels, channels),
+            )
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
             return self.model(x) + x
@@ -103,7 +118,21 @@ class BigNet4Bit(torch.nn.Module):
     def __init__(self):
         super().__init__()
         # TODO: Implement me (feel free to copy and reuse code from bignet.py)
-        raise NotImplementedError()
+        # raise NotImplementedError()
+        self.model = torch.nn.Sequential(
+            self.Block(BIGNET_DIM),
+            LayerNorm(BIGNET_DIM),
+            self.Block(BIGNET_DIM),
+            LayerNorm(BIGNET_DIM),
+            self.Block(BIGNET_DIM),
+            LayerNorm(BIGNET_DIM),
+            self.Block(BIGNET_DIM),
+            LayerNorm(BIGNET_DIM),
+            self.Block(BIGNET_DIM),
+            LayerNorm(BIGNET_DIM),
+            self.Block(BIGNET_DIM),
+        )
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
