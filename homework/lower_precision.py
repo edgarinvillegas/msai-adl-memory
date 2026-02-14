@@ -125,7 +125,9 @@ class LinearMinimumBit(torch.nn.Module):
             weight = state_dict[f"{prefix}weight"]  # noqa: F841
             del state_dict[f"{prefix}weight"]
             # Quantize the weights and store them in self.weight_q3 and self.weight_norm
-            self.weight_q3, self.weight_norm = block_quantize_min_bit(weight.flatten(), self._group_size)
+            q3, norm = block_quantize_min_bit(weight.flatten(), self._group_size)
+            self.weight_q3.copy_(q3)
+            self.weight_norm.copy_(norm)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
